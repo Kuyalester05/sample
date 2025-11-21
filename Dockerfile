@@ -1,30 +1,30 @@
-# Stage 1: Builder
-FROM php:8.3-fpm-alpine AS base
+# Use PHP 8.2 FPM image
+FROM php:8.2-fpm
 
-# Install necessary system dependencies and minimal PHP extensions
-RUN apk add --no-cache \
+# Set working directory
+WORKDIR /var/www
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     git \
     curl \
-    libzip-dev \
-    && docker-php-ext-install zip
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath xml
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-WORKDIR /var/www/html
+# Copy application files
+COPY . .
 
-# Stage 2: Dependencies
-FROM base AS dependencies
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader
+# Install PHP dependencies
+RUN composer install
 
-# Stage 3: Production
-FROM base AS production
-COPY --from=dependencies /var/www/html/vendor /var/www/html/vendor
-COPY . /var/www/html
-
-# Set the correct permissions for Laravel storage and cache directories
-RUN chown -R www-data:www-data storage bootstrap/cache
-
+# Expose port for PHP-FPM
 EXPOSE 9000
+
 CMD ["php-fpm"]

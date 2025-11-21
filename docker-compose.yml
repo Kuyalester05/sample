@@ -1,38 +1,47 @@
 version: '3.8'
-services:
 
-  # 1. Laravel Application Service (PHP-FPM)
+services:
+  # ----------------------------------------------------------------------
+  # PHP-FPM Service (The Laravel Application)
+  # ----------------------------------------------------------------------
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: laravel-app
-    # Mount the local directory to the container (for live code changes)
+    container_name: laravel-app
+    restart: unless-stopped
+    # Sets the base directory for subsequent commands
+    working_dir: /var/www
+    # Mounts the current project directory into the container
     volumes:
-      - .:/var/www/html
-      - /var/www/html/vendor # Important to prevent overwriting vendor dir
-    # Set the timezone if necessary for logging/scheduling
-    environment:
-      - TZ=Asia/Manila # Example timezone
+      - ./:/var/www
     networks:
-      - laravel-net
+      - laravel-network
 
-  # 2. Nginx Web Server Service
+  # ----------------------------------------------------------------------
+  # Nginx Service (The Web Server)
+  # ----------------------------------------------------------------------
   nginx:
-    image: nginx:stable-alpine
+    image: nginx:alpine
+    container_name: laravel-nginx
+    restart: unless-stopped
+    # Exposes container port 80 to host port 8080
     ports:
-      # Map container port 80 to host port 8000
-      - "8000:80"
+      - "8080:80"
     volumes:
-      - .:/var/www/html
-      # Configuration for Nginx
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      # Mounts the project code
+      - ./:/var/www
+      # Mounts the custom Nginx configuration file
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    # Ensures the PHP-FPM service is running before Nginx starts
     depends_on:
-      - app # Ensure the app is running before Nginx starts serving
+      - app
     networks:
-      - laravel-net
+      - laravel-network
 
-# Define a shared network for the two services
+# ----------------------------------------------------------------------
+# Define Networks (Volumes section is removed as it was only for MySQL)
+# ----------------------------------------------------------------------
 networks:
-  laravel-net:
+  laravel-network:
     driver: bridge
